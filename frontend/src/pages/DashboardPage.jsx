@@ -87,17 +87,14 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
         return current;
       }
 
-      const draftOrActive = cycles.find(
-        (cycle) => cycle.name === 'Third Cycle' || cycle.status === 'ONGOING' || cycle.status === 'DRAFT'
-      );
+      const draftOrActive = cycles.find((cycle) => cycle.status === 'ONGOING' || cycle.status === 'DRAFT');
 
       return draftOrActive?.id || cycles[0].id;
     });
   }, [cycles]);
 
-  const thirdCycle = cycles.find((cycle) => cycle.name === 'Third Cycle');
   const secondCycle = cycles.find((cycle) => cycle.name === 'Second Cycle');
-  const selectedCycle = cycles.find((cycle) => cycle.id === selectedCycleId) || thirdCycle || cycles[0] || null;
+  const selectedCycle = cycles.find((cycle) => cycle.id === selectedCycleId) || cycles[0] || null;
   const activeMonth = useMemo(() => {
     if (!selectedCycle?.months?.length) return null;
 
@@ -120,7 +117,14 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
       .find((cycle) => cycle.months.some((month) => month.payout_recipient_name)) || secondCycle;
 
   const summaryCards = [
-    { label: 'Latest Cycle', value: thirdCycle ? 'Third cycle ready for onboarding' : 'Upcoming cycle pending' },
+    {
+      label: 'Latest Cycle',
+      value: cycles.some((cycle) => cycle.status === 'ONGOING')
+        ? 'Cycle is ongoing'
+        : cycles.some((cycle) => cycle.status === 'DRAFT')
+          ? 'Draft cycle ready to start'
+          : 'No active cycle',
+    },
     {
       label: "Latest Cycle's Contribution",
       value: secondCycle ? formatCurrency(secondCycle.contribution_amount) : 'Not available',

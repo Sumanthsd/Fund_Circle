@@ -233,23 +233,4 @@ export async function initDb() {
       { label: 'April 2026', dueDate: '2026-04-05', transferDate: '2026-04-05', recipient: 'Gururaj', method: 'LAST_DRAW', status: 'CLOSED', notes: 'Last remaining member, payout given' },
     ],
   });
-
-  await seedCycle({
-    name: 'Third Cycle',
-    startMonth: 'May 2026',
-    endMonth: 'October 2026',
-    contributionAmount: 15000,
-    payoutAmount: 90000,
-    drawDayOfMonth: 5,
-    status: 'DRAFT',
-    memberNames: members,
-    months: [
-      { label: 'May 2026', dueDate: '2026-05-05', status: 'DRAFT', notes: 'Ready to open after group confirmation' },
-      { label: 'June 2026', dueDate: '2026-06-05', status: 'DRAFT', notes: 'Ready to open after group confirmation' },
-      { label: 'July 2026', dueDate: '2026-07-05', status: 'DRAFT', notes: 'Ready to open after group confirmation' },
-      { label: 'August 2026', dueDate: '2026-08-05', status: 'DRAFT', notes: 'Ready to open after group confirmation' },
-      { label: 'September 2026', dueDate: '2026-09-05', status: 'DRAFT', notes: 'Ready to open after group confirmation' },
-      { label: 'October 2026', dueDate: '2026-10-05', status: 'DRAFT', notes: 'Ready to open after group confirmation' },
-    ],
-  });
 }
