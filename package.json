@@ -1,0 +1,17 @@
+{
+  "name": "friends-chit-fund",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend run start"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
