@@ -73,7 +73,7 @@ export async function addMember(payload) {
   };
 }
 
-export async function editMember(id, payload) {
+export async function editMember(id, payload, actor) {
   const member = await getMemberById(id);
   if (!member) {
     const error = new Error('Member not found');
@@ -81,7 +81,31 @@ export async function editMember(id, payload) {
     throw error;
   }
 
-  const email = String(payload.email || '').trim().toLowerCase();
+  const actorEmail = String(actor?.email || '').trim().toLowerCase();
+  const isAdmin = Boolean(actor?.isAdmin);
+
+  if (!isAdmin) {
+    if (!actorEmail) {
+      const error = new Error('Authentication required');
+      error.status = 401;
+      throw error;
+    }
+
+    const memberEmail = String(member.email || '').trim().toLowerCase();
+    if (!memberEmail) {
+      const error = new Error('Your member profile is missing an email. Ask the admin to add it first.');
+      error.status = 403;
+      throw error;
+    }
+
+    if (memberEmail !== actorEmail) {
+      const error = new Error('You can only edit your own member profile.');
+      error.status = 403;
+      throw error;
+    }
+  }
+
+  const email = isAdmin ? String(payload.email || '').trim().toLowerCase() : String(member.email || '').trim().toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     const error = new Error('Member email is invalid');
     error.status = 400;

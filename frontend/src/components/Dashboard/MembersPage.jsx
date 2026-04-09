@@ -18,6 +18,7 @@ export default function MembersPage({
   editingMember,
   deletingMemberId,
   canManageMembers,
+  currentUserEmail,
   onAdminDenied,
 }) {
   const [mode, setMode] = useState('add');
@@ -35,6 +36,14 @@ export default function MembersPage({
     () => members.find((member) => member.id === selectedMemberId) || null,
     [members, selectedMemberId]
   );
+
+  const canEditSelected = useMemo(() => {
+    if (!selectedMember) return false;
+    if (canManageMembers) return true;
+    const actorEmail = String(currentUserEmail || '').trim().toLowerCase();
+    const memberEmail = String(selectedMember.email || '').trim().toLowerCase();
+    return Boolean(actorEmail && memberEmail && actorEmail === memberEmail);
+  }, [canManageMembers, currentUserEmail, selectedMember]);
 
   useEffect(() => {
     if (!members.length) {
@@ -100,7 +109,7 @@ export default function MembersPage({
   async function submitEdit(event) {
     event.preventDefault();
     if (!selectedMember) return;
-    if (!canManageMembers) {
+    if (!canEditSelected) {
       onAdminDenied?.();
       return;
     }
@@ -290,6 +299,7 @@ export default function MembersPage({
                     value={editForm.email}
                     onChange={(event) => updateEditField('email', event.target.value)}
                     placeholder="Add email address"
+                    disabled={!canManageMembers}
                   />
                 </label>
 
@@ -322,21 +332,23 @@ export default function MembersPage({
                 </label>
 
                 <div className="member-action-row">
-                  <button className="primary-button" type="submit" disabled={editingMember}>
+                  <button className="primary-button" type="submit" disabled={editingMember || !canEditSelected}>
                     {editingMember ? 'Saving...' : 'Save member details'}
-                    {!canManageMembers ? <span className="lock-tag">Admin</span> : null}
+                    {!canEditSelected ? <span className="lock-tag">Admin</span> : null}
                   </button>
                   <button
                     className="secondary-button danger-button"
                     type="button"
                     onClick={handleDelete}
-                    disabled={deletingMemberId === selectedMember.id}
+                    disabled={deletingMemberId === selectedMember.id || !canManageMembers}
                   >
                     {deletingMemberId === selectedMember.id ? 'Deleting...' : 'Delete member'}
                     {!canManageMembers ? <span className="lock-tag">Admin</span> : null}
                   </button>
                 </div>
-                {!canManageMembers ? <p className="helper-message">Only the master admin can edit or delete members.</p> : null}
+                {!canEditSelected ? (
+                  <p className="helper-message">You can edit only your own member profile. Ask admin if your email is missing.</p>
+                ) : null}
               </form>
             ) : (
               <div className="loading-card">Select a member from the left to edit details.</div>

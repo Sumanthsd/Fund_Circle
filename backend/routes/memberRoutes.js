@@ -11,7 +11,7 @@ const router = Router();
 
 router.get('/', getMembersHandler);
 router.post('/', requireAdmin, createMemberHandler);
-router.patch('/:id', requireAdmin, updateMemberHandler);
+router.patch('/:id', updateMemberHandler);
 router.delete('/:id', requireAdmin, deleteMemberHandler);
 
 export default router;

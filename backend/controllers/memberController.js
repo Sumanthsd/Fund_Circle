@@ -19,7 +19,7 @@ export async function createMemberHandler(req, res, next) {
 
 export async function updateMemberHandler(req, res, next) {
   try {
-    const result = await editMember(Number(req.params.id), req.body || {});
+    const result = await editMember(Number(req.params.id), req.body || {}, req.user);
     res.json(result);
   } catch (err) {
     next(err);

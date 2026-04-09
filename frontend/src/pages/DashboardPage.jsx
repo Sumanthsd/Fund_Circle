@@ -342,6 +342,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
           editingMember={editingMember}
           deletingMemberId={deletingMemberId}
           canManageMembers={Boolean(user.isAdmin)}
+          currentUserEmail={user.email}
           onAdminDenied={showAdminNotice}
         />
       );
