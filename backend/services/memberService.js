@@ -19,12 +19,19 @@ export async function listMembers() {
 
 export async function addMember(payload) {
   const name = String(payload.name || '').trim();
+  const email = String(payload.email || '').trim().toLowerCase();
   const mobile = String(payload.mobile || '').trim();
   const dob = String(payload.dob || '').trim();
   const gender = String(payload.gender || '').trim();
 
   if (!name) {
     const error = new Error('Member name is required');
+    error.status = 400;
+    throw error;
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const error = new Error('Member email is invalid');
     error.status = 400;
     throw error;
   }
@@ -36,7 +43,7 @@ export async function addMember(payload) {
     throw error;
   }
 
-  const member = await createMember({ name, mobile, dob, gender });
+  const member = await createMember({ name, email, mobile, dob, gender });
   const draftCycles = await getDraftCycles();
 
   await Promise.all(
@@ -74,7 +81,15 @@ export async function editMember(id, payload) {
     throw error;
   }
 
+  const email = String(payload.email || '').trim().toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const error = new Error('Member email is invalid');
+    error.status = 400;
+    throw error;
+  }
+
   return updateMember(id, {
+    email,
     mobile: String(payload.mobile || '').trim(),
     dob: String(payload.dob || '').trim(),
     gender: String(payload.gender || '').trim(),

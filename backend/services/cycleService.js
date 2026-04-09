@@ -5,11 +5,16 @@ import {
   getCycleById,
   getCycleMembers,
   getCycleByName,
+  getContributionById,
+  getContributionContext,
   getCycleMonths,
   getCycles,
   getEligibleMembersForMonth,
   getMonthContributions,
+  getCycleDeleteSafety,
   saveRandomDraw,
+  updateCycleMonthStatuses,
+  updateCycleStatus,
   updateContribution,
 } from '../models/chitModel.js';
 import { execAsync } from '../config/db.js';
@@ -217,8 +222,20 @@ export async function removeCycle(id) {
     throw error;
   }
 
-  if (cycle.status !== 'DRAFT') {
-    const error = new Error('Only DRAFT cycles can be deleted');
+  if (!['DRAFT', 'ONGOING'].includes(cycle.status)) {
+    const error = new Error('Only DRAFT or ONGOING cycles can be deleted');
+    error.status = 409;
+    throw error;
+  }
+
+  const safety = await getCycleDeleteSafety(id);
+  if (Number(safety?.paid_count || 0) > 0) {
+    const error = new Error('This cycle has paid contributions and cannot be deleted');
+    error.status = 409;
+    throw error;
+  }
+  if (Number(safety?.payout_count || 0) > 0) {
+    const error = new Error('This cycle already has a finalized payout and cannot be deleted');
     error.status = 409;
     throw error;
   }
@@ -234,7 +251,22 @@ export async function markContributionPaid(id, status) {
     throw error;
   }
 
-  return updateContribution(id, status);
+  if (!Number.isInteger(id) || id <= 0) {
+    const error = new Error('Invalid contribution id');
+    error.status = 400;
+    throw error;
+  }
+
+  const before = await getContributionById(id);
+  if (!before) {
+    const error = new Error('Contribution not found');
+    error.status = 404;
+    throw error;
+  }
+
+  const updated = await updateContribution(id, status);
+
+  return updated;
 }
 
 export async function finalizeRandomDraw(monthId, selectedMemberId) {
@@ -261,4 +293,37 @@ export async function finalizeRandomDraw(monthId, selectedMemberId) {
     selectedMember: selected,
     eligibleMembers,
   };
+}
+
+export async function startCycle(id) {
+  if (!Number.isInteger(id) || id <= 0) {
+    const error = new Error('Invalid cycle id');
+    error.status = 400;
+    throw error;
+  }
+
+  const cycle = await getCycleById(id);
+  if (!cycle) {
+    const error = new Error('Cycle not found');
+    error.status = 404;
+    throw error;
+  }
+
+  if (cycle.status !== 'DRAFT') {
+    const error = new Error('Only DRAFT cycles can be started');
+    error.status = 409;
+    throw error;
+  }
+
+  await execAsync('BEGIN');
+  try {
+    await updateCycleStatus(id, 'ONGOING');
+    await updateCycleMonthStatuses(id, 'DRAFT', 'OPEN');
+    await execAsync('COMMIT');
+  } catch (err) {
+    await execAsync('ROLLBACK');
+    throw err;
+  }
+
+  return getCycleById(id);
 }

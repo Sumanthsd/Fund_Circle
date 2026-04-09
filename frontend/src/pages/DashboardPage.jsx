@@ -7,7 +7,7 @@ import MembersPage from '../components/Dashboard/MembersPage.jsx';
 import OverallPerformanceTile from '../components/Dashboard/OverallPerformanceTile.jsx';
 import RandomPicker from '../components/Dashboard/RandomPicker.jsx';
 import { ABOUT_ITEMS, BRAND_COPY, BRAND_NAME, CONTACT_INFO } from '../config/branding.js';
-import { createCycle, deleteCycle, finalizeRandomDraw, getCycles, updateContribution } from '../services/cycleService.js';
+import { createCycle, deleteCycle, finalizeRandomDraw, getCycles, startCycle, updateContribution } from '../services/cycleService.js';
 import { createMember, deleteMember, getMembers, updateMember } from '../services/memberService.js';
 
 function formatCurrency(value) {
@@ -88,7 +88,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
       }
 
       const draftOrActive = cycles.find(
-        (cycle) => cycle.name === 'Third Cycle' || cycle.status === 'ACTIVE' || cycle.status === 'DRAFT'
+        (cycle) => cycle.name === 'Third Cycle' || cycle.status === 'ONGOING' || cycle.status === 'DRAFT'
       );
 
       return draftOrActive?.id || cycles[0].id;
@@ -98,11 +98,22 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   const thirdCycle = cycles.find((cycle) => cycle.name === 'Third Cycle');
   const secondCycle = cycles.find((cycle) => cycle.name === 'Second Cycle');
   const selectedCycle = cycles.find((cycle) => cycle.id === selectedCycleId) || thirdCycle || cycles[0] || null;
-  const activeMonth = thirdCycle?.months?.[0];
+  const activeMonth = useMemo(() => {
+    if (!selectedCycle?.months?.length) return null;
+
+    return (
+      selectedCycle.months.find(
+        (month) =>
+          !month.payout_recipient_name &&
+          (month.status === 'OPEN' || month.status === 'DRAFT')
+      ) || null
+    );
+  }, [selectedCycle]);
+
   const eligibleMembers = useMemo(() => {
-    if (!thirdCycle) return [];
-    return thirdCycle.members.filter((member) => !member.payout_received);
-  }, [thirdCycle]);
+    if (!selectedCycle) return [];
+    return selectedCycle.members.filter((member) => !member.payout_received);
+  }, [selectedCycle]);
   const latestPayoutCycle =
     [...cycles]
       .reverse()
@@ -239,6 +250,26 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
     }
   }
 
+  async function handleStartCycle(cycleId) {
+    if (!user.isAdmin) {
+      showAdminNotice();
+      return null;
+    }
+
+    try {
+      await startCycle(cycleId);
+      await loadCycles();
+      setNotice('Cycle started.');
+      return true;
+    } catch (err) {
+      if (err?.response?.status === 403) {
+        showAdminNotice();
+        return null;
+      }
+      throw err;
+    }
+  }
+
   function openCycleDetails(cycleId) {
     setSelectedCycleId(cycleId);
     setView('cycle-details');
@@ -329,6 +360,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
           deletingCycleId={deletingCycleId}
           onCreateCycle={handleCreateCycle}
           onDeleteCycle={handleDeleteCycle}
+          onStartCycle={handleStartCycle}
           onOpenCycle={openCycleDetails}
           canManageCycles={Boolean(user.isAdmin)}
           onAdminDenied={showAdminNotice}
@@ -353,6 +385,20 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
             canFinalize={Boolean(user.isAdmin)}
             onAdminDenied={showAdminNotice}
           />
+        </section>
+      );
+    }
+
+    if (view === 'picker' && !activeMonth) {
+      return (
+        <section className="panel surface-card fade-in-up">
+          <div className="panel-heading">
+            <div>
+              <div className="auth-eyebrow">Draw</div>
+              <h2>Winner selection</h2>
+              <p>No open month is ready for a draw right now.</p>
+            </div>
+          </div>
         </section>
       );
     }
@@ -514,7 +560,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
           <p className="sidebar-copy">Navigate your working areas quickly without wasting screen space.</p>
 
           <nav className="sidebar-nav">
-              {MENU_ITEMS.map((item) => (
+            {MENU_ITEMS.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -533,15 +579,15 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
                 Cycle Details
               </button>
             )}
-              {activeMonth ? (
-                <button
-                  type="button"
-                  className={`sidebar-link ${view === 'picker' ? 'is-active' : ''}`}
-                  onClick={() => setView('picker')}
-                >
-                  Winner draw
-                </button>
-              ) : null}
+            <button
+              type="button"
+              className={`sidebar-link ${view === 'picker' ? 'is-active' : ''} ${activeMonth ? '' : 'button-locked'}`}
+              onClick={() => (activeMonth ? setView('picker') : null)}
+              title={activeMonth ? '' : 'No open month available for draw'}
+              disabled={!activeMonth}
+            >
+              Winner draw
+            </button>
           </nav>
         </aside>
 

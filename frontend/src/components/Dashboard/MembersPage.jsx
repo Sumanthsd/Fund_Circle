@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 
 const emptyForm = {
   name: '',
+  email: '',
   mobile: '',
   dob: '',
   gender: '',
@@ -23,6 +24,7 @@ export default function MembersPage({
   const [selectedMemberId, setSelectedMemberId] = useState(members[0]?.id ?? null);
   const [addForm, setAddForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState({
+    email: '',
     mobile: '',
     dob: '',
     gender: '',
@@ -47,6 +49,7 @@ export default function MembersPage({
     if (!selectedMember) return;
 
     setEditForm({
+      email: selectedMember.email || '',
       mobile: selectedMember.mobile || '',
       dob: selectedMember.dob || '',
       gender: selectedMember.gender || '',
@@ -159,6 +162,7 @@ export default function MembersPage({
         <div className="member-list">
           <div className="member-list-head">
             <span>Name</span>
+            <span>Email</span>
             <span>Mobile</span>
             <span>Gender</span>
             <span>DOB</span>
@@ -174,6 +178,7 @@ export default function MembersPage({
               }}
             >
               <span className="member-col member-col-name">{member.name}</span>
+              <span className="member-col">{member.email || 'Email not added'}</span>
               <span className="member-col">{member.mobile || 'Mobile not added'}</span>
               <span className="member-col">{member.gender || 'Gender not added'}</span>
               <span className="member-col">{member.dob || 'DOB not added'}</span>
@@ -218,6 +223,16 @@ export default function MembersPage({
                   onChange={(event) => updateAddField('name', event.target.value)}
                   placeholder="Enter member name"
                   required
+                />
+              </label>
+
+              <label className="auth-field">
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={addForm.email}
+                  onChange={(event) => updateAddField('email', event.target.value)}
+                  placeholder="Optional email address"
                 />
               </label>
 
@@ -268,6 +283,16 @@ export default function MembersPage({
 
             {selectedMember ? (
               <form className="member-form" onSubmit={submitEdit}>
+                <label className="auth-field">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(event) => updateEditField('email', event.target.value)}
+                    placeholder="Add email address"
+                  />
+                </label>
+
                 <label className="auth-field">
                   <span>Mobile</span>
                   <input

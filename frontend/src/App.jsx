@@ -51,7 +51,14 @@ function App() {
         setUser(currentUser);
       } catch (error) {
         if (active) {
-          setAuthError('Unable to finish sign-in. Please refresh and try again.');
+          const status = error?.response?.status;
+          const message =
+            status === 401
+              ? 'Signed in, but the API rejected the session (401). Check backend CLERK_* keys and CORS_ORIGIN/authorized parties for your Vercel domain.'
+              : status
+                ? `Signed in, but the API request failed (${status}). Check the backend logs for /api/auth/me.`
+                : 'Signed in, but the API could not be reached. Check VITE_API_BASE_URL and CORS settings.';
+          setAuthError(message);
           setUser(null);
         }
       }

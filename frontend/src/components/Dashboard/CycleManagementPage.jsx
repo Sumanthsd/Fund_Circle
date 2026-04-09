@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const defaultForm = {
   name: '',
@@ -23,6 +23,7 @@ export default function CycleManagementPage({
   deletingCycleId,
   onCreateCycle,
   onDeleteCycle,
+  onStartCycle,
   onOpenCycle,
   canManageCycles,
   onAdminDenied,
@@ -32,11 +33,14 @@ export default function CycleManagementPage({
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const initializedSelection = useRef(false);
 
   useEffect(() => {
-    if (!members.length || selectedMemberIds.length > 0) return;
+    if (initializedSelection.current) return;
+    if (!members.length) return;
     setSelectedMemberIds(members.map((member) => member.id));
-  }, [members, selectedMemberIds.length]);
+    initializedSelection.current = true;
+  }, [members]);
 
   const selectedMembers = useMemo(
     () => members.filter((member) => selectedMemberIds.includes(member.id)),
@@ -110,6 +114,26 @@ export default function CycleManagementPage({
       setMessage(`Deleted ${cycle.name}.`);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Unable to delete cycle.');
+    }
+  }
+
+  async function handleStartCycle(cycle) {
+    if (!canManageCycles) {
+      onAdminDenied?.();
+      return;
+    }
+
+    const confirmed = window.confirm(`Start ${cycle.name}? This will move it from DRAFT to ONGOING.`);
+    if (!confirmed) return;
+
+    setMessage('');
+    setError('');
+
+    try {
+      await onStartCycle?.(cycle.id);
+      setMessage(`Started ${cycle.name}.`);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Unable to start cycle.');
     }
   }
 
@@ -265,10 +289,21 @@ export default function CycleManagementPage({
                 </button>
                 <button
                   type="button"
+                  className="secondary-button"
+                  onClick={() => handleStartCycle(cycle)}
+                  disabled={cycle.status !== 'DRAFT'}
+                  title={cycle.status !== 'DRAFT' ? 'Only DRAFT cycles can be started' : ''}
+                >
+                  Start cycle
+                </button>
+                <button
+                  type="button"
                   className="secondary-button danger-button"
                   onClick={() => handleDeleteCycle(cycle)}
-                  disabled={cycle.status !== 'DRAFT' || deletingCycleId === cycle.id}
-                  title={cycle.status !== 'DRAFT' ? 'Only DRAFT cycles can be deleted' : ''}
+                  disabled={!['DRAFT', 'ONGOING'].includes(cycle.status) || deletingCycleId === cycle.id}
+                  title={
+                    !['DRAFT', 'ONGOING'].includes(cycle.status) ? 'Only DRAFT/ONGOING cycles can be deleted' : ''
+                  }
                 >
                   {deletingCycleId === cycle.id ? 'Deleting...' : 'Delete cycle'}
                 </button>

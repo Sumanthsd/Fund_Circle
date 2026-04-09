@@ -27,23 +27,23 @@ export async function getMemberByName(name) {
   return getAsync('SELECT * FROM members WHERE lower(name) = lower($1)', [name]);
 }
 
-export async function createMember({ name, mobile, dob, gender }) {
+export async function createMember({ name, email, mobile, dob, gender }) {
   const createdAt = new Date().toISOString();
   const result = await runAsync(
-    `INSERT INTO members (name, mobile, dob, gender, is_active, created_at)
-     VALUES ($1, $2, $3, $4, 1, $5)`,
-    [name, mobile || null, dob || null, gender || null, createdAt]
+    `INSERT INTO members (name, email, mobile, dob, gender, is_active, created_at)
+     VALUES ($1, $2, $3, $4, $5, 1, $6)`,
+    [name, email || null, mobile || null, dob || null, gender || null, createdAt]
   );
 
   return getAsync('SELECT * FROM members WHERE id = $1', [result.lastID]);
 }
 
-export async function updateMember(id, { mobile, dob, gender }) {
+export async function updateMember(id, { email, mobile, dob, gender }) {
   await runAsync(
     `UPDATE members
-     SET mobile = $1, dob = $2, gender = $3
-     WHERE id = $4`,
-    [mobile || null, dob || null, gender || null, id]
+     SET email = $1, mobile = $2, dob = $3, gender = $4
+     WHERE id = $5`,
+    [email || null, mobile || null, dob || null, gender || null, id]
   );
 
   return getMemberById(id);

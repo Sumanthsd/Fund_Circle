@@ -15,6 +15,11 @@ export async function deleteCycle(id) {
   return data;
 }
 
+export async function startCycle(id) {
+  const { data } = await apiClient.post(`/api/cycles/${id}/start`);
+  return data;
+}
+
 export async function updateContribution(id, status) {
   const { data } = await apiClient.patch(`/api/cycles/contributions/${id}`, { status });
   return data;

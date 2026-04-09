@@ -4,6 +4,35 @@ export async function getCycles() {
   return allAsync('SELECT * FROM chit_cycles ORDER BY id ASC');
 }
 
+export async function getContributionById(id) {
+  return getAsync('SELECT * FROM monthly_contributions WHERE id = $1', [id]);
+}
+
+export async function getContributionContext(id) {
+  return getAsync(
+    `SELECT
+      mc.id AS contribution_id,
+      mc.status AS contribution_status,
+      mc.amount AS contribution_amount,
+      mc.paid_date AS contribution_paid_date,
+      mc.chit_month_id AS month_id,
+      cm.month_label AS month_label,
+      cm.due_date AS month_due_date,
+      cm.cycle_id AS cycle_id,
+      cc.name AS cycle_name,
+      m.id AS member_id,
+      m.name AS member_name,
+      m.email AS member_email,
+      m.mobile AS member_mobile
+     FROM monthly_contributions mc
+     JOIN chit_months cm ON cm.id = mc.chit_month_id
+     JOIN chit_cycles cc ON cc.id = cm.cycle_id
+     JOIN members m ON m.id = mc.member_id
+     WHERE mc.id = $1`,
+    [id]
+  );
+}
+
 export async function getCycleById(id) {
   return getAsync('SELECT * FROM chit_cycles WHERE id = $1', [id]);
 }
@@ -111,8 +140,35 @@ export async function updateContribution(id, status) {
   return getAsync('SELECT * FROM monthly_contributions WHERE id = $1', [id]);
 }
 
+export async function updateCycleStatus(id, status) {
+  const updatedAt = new Date().toISOString();
+  await runAsync(`UPDATE chit_cycles SET status = $1, updated_at = $2 WHERE id = $3`, [status, updatedAt, id]);
+  return getAsync('SELECT * FROM chit_cycles WHERE id = $1', [id]);
+}
+
+export async function updateCycleMonthStatuses(cycleId, fromStatus, toStatus) {
+  await runAsync(
+    `UPDATE chit_months
+     SET status = $1
+     WHERE cycle_id = $2 AND status = $3`,
+    [toStatus, cycleId, fromStatus]
+  );
+}
+
 export async function deleteCycle(id) {
   await runAsync('DELETE FROM chit_cycles WHERE id = $1', [id]);
+}
+
+export async function getCycleDeleteSafety(id) {
+  return getAsync(
+    `SELECT
+      (SELECT COUNT(*) FROM monthly_contributions mc
+       JOIN chit_months m ON m.id = mc.chit_month_id
+       WHERE m.cycle_id = $1 AND mc.status = 'PAID') AS paid_count,
+      (SELECT COUNT(*) FROM chit_months m
+       WHERE m.cycle_id = $1 AND m.payout_recipient_member_id IS NOT NULL) AS payout_count`,
+    [id]
+  );
 }
 
 export async function saveRandomDraw({ monthId, eligibleMemberIds, selectedMemberId, randomProof }) {

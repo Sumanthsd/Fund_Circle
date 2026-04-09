@@ -4,6 +4,7 @@ import {
   listCycles,
   markContributionPaid,
   removeCycle,
+  startCycle,
 } from '../services/cycleService.js';
 
 export async function getCyclesHandler(_req, res, next) {
@@ -44,6 +45,15 @@ export async function randomDrawHandler(req, res, next) {
   try {
     const result = await finalizeRandomDraw(Number(req.params.id), req.body.selectedMemberId);
     res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function startCycleHandler(req, res, next) {
+  try {
+    const updated = await startCycle(Number(req.params.id));
+    res.json(updated);
   } catch (err) {
     next(err);
   }

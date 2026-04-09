@@ -1,4 +1,4 @@
-import { execAsync, getAsync, runAsync } from './db.js';
+import { allAsync, execAsync, getAsync, runAsync } from './db.js';
 
 const members = ['Sumanth S', 'Sumanth SD', 'Gururaj', 'Mahesh', 'Rohit', 'Basavaraj'];
 
@@ -108,6 +108,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
+      email TEXT,
       mobile TEXT,
       dob TEXT,
       gender TEXT,
@@ -189,6 +190,12 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_cycle_members_cycle_id ON cycle_members(cycle_id);
     CREATE INDEX IF NOT EXISTS idx_contributions_month_id ON monthly_contributions(chit_month_id);
   `);
+
+  const memberColumns = await allAsync(`PRAGMA table_info(members)`);
+  const memberColumnNames = new Set(memberColumns.map((column) => column.name));
+  if (!memberColumnNames.has('email')) {
+    await runAsync(`ALTER TABLE members ADD COLUMN email TEXT`);
+  }
 
   await seedCycle({
     name: 'First Cycle',

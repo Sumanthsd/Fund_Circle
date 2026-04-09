@@ -126,7 +126,13 @@ export default function CycleExplorer({ cycle, onContributionChange, canManageCy
               </div>
               <div className="month-detail-stat">
                 <span>Selection method</span>
-                <strong>{selectedMonth.selection_method || 'Pending'}</strong>
+                <strong>
+                  {selectedMonth.selection_method
+                    ? selectedMonth.selection_method === 'RANDOM_DRAW'
+                      ? 'Picked from draw'
+                      : selectedMonth.selection_method
+                    : 'Pending'}
+                </strong>
               </div>
             </div>
 
