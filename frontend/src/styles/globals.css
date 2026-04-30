@@ -255,6 +255,32 @@ button:disabled {
   color: var(--accent);
 }
 
+.online-users-pill {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 0.45rem;
+  max-width: 30rem;
+  padding: 0.45rem 0.72rem;
+}
+
+.online-users-label {
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.online-users-names {
+  color: var(--text);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav-link-button:hover,
 .theme-toggle:hover {
   background: var(--surface-soft);
@@ -1632,6 +1658,14 @@ th {
   .landing-actions,
   .header-actions {
     flex-wrap: wrap;
+  }
+
+  .online-users-pill {
+    max-width: 100%;
+  }
+
+  .online-users-names {
+    white-space: normal;
   }
 
   .member-mode-switch,

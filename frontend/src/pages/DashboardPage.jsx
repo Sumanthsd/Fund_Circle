@@ -7,6 +7,7 @@ import MembersPage from '../components/Dashboard/MembersPage.jsx';
 import OverallPerformanceTile from '../components/Dashboard/OverallPerformanceTile.jsx';
 import RandomPicker from '../components/Dashboard/RandomPicker.jsx';
 import { ABOUT_ITEMS, BRAND_COPY, BRAND_NAME, CONTACT_INFO } from '../config/branding.js';
+import { getActiveUsers } from '../services/authService.js';
 import { createCycle, deleteCycle, finalizeRandomDraw, getCycles, startCycle, updateContribution } from '../services/cycleService.js';
 import { createMember, deleteMember, getMembers, updateMember } from '../services/memberService.js';
 
@@ -23,6 +24,18 @@ const MENU_ITEMS = [
   { id: 'members', label: 'Members' },
   { id: 'cycles', label: 'Cycles' },
 ];
+const BACKGROUND_REFRESH_MS = 15000;
+const ACTIVE_USERS_REFRESH_MS = 20000;
+
+function getDisplayUserName(profile) {
+  const name = String(profile?.name || '').trim();
+  if (name) return name;
+
+  const email = String(profile?.email || '').trim();
+  if (!email) return 'User';
+  const [beforeAt] = email.split('@');
+  return beforeAt || email;
+}
 
 export default function DashboardPage({ user, theme, onToggleTheme }) {
   const [cycles, setCycles] = useState([]);
@@ -34,6 +47,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   const [deletingMemberId, setDeletingMemberId] = useState(null);
   const [creatingCycle, setCreatingCycle] = useState(false);
   const [deletingCycleId, setDeletingCycleId] = useState(null);
+  const [activeUsers, setActiveUsers] = useState([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [view, setView] = useState('dashboard');
@@ -45,30 +59,84 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
     return data;
   }
 
-  async function loadMembers() {
-    setMembersLoading(true);
+  async function loadMembers({ background = false } = {}) {
+    if (!background) {
+      setMembersLoading(true);
+    }
+
     try {
       setMembers(await getMembers());
     } finally {
-      setMembersLoading(false);
+      if (!background) {
+        setMembersLoading(false);
+      }
     }
   }
 
-  async function refreshDashboardData() {
+  async function loadActiveUsers() {
+    setActiveUsers(await getActiveUsers());
+  }
+
+  async function refreshDashboardData({ background = false } = {}) {
     try {
-      setError('');
-      setLoading(true);
-      await Promise.all([loadCycles(), loadMembers()]);
+      if (!background) {
+        setError('');
+        setLoading(true);
+      }
+
+      await Promise.all([loadCycles(), loadMembers({ background })]);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load dashboard data.');
+      if (!background) {
+        setError(err?.response?.data?.message || err?.message || 'Failed to load dashboard data.');
+      }
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     refreshDashboardData();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function refreshActiveUsers() {
+      try {
+        const users = await getActiveUsers();
+        if (!active) return;
+        setActiveUsers(users);
+      } catch (_err) {
+        if (!active) return;
+      }
+    }
+
+    refreshActiveUsers();
+    const intervalId = window.setInterval(refreshActiveUsers, ACTIVE_USERS_REFRESH_MS);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (view === 'members' || loading) return;
+
+    const intervalId = window.setInterval(() => {
+      refreshDashboardData({ background: true });
+    }, BACKGROUND_REFRESH_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [view, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    refreshDashboardData({ background: true });
+    loadActiveUsers();
+  }, [view]);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -115,6 +183,14 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
     [...cycles]
       .reverse()
       .find((cycle) => cycle.months.some((month) => month.payout_recipient_name)) || secondCycle;
+  const activeUserNames = useMemo(() => {
+    if (!Array.isArray(activeUsers)) return [];
+    return activeUsers.map((activeUser) => ({
+      id: activeUser.id,
+      label: getDisplayUserName(activeUser),
+      isSelf: Number(activeUser.id) === Number(user.id),
+    }));
+  }, [activeUsers, user.id]);
 
   const summaryCards = [
     {
@@ -525,6 +601,14 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
           <span className={`role-pill ${user.isAdmin ? 'role-admin' : 'role-member'}`}>
             {user.isAdmin ? 'Admin User' : 'Member'}
           </span>
+          <div className="online-users-pill" title="Users active in the last 5 minutes">
+            <span className="online-users-label">Online now:</span>
+            <span className="online-users-names">
+              {activeUserNames.length
+                ? activeUserNames.map((entry) => (entry.isSelf ? `${entry.label} (You)` : entry.label)).join(', ')
+                : 'No active users'}
+            </span>
+          </div>
           <button className="nav-link-button" type="button" onClick={() => setView('about')}>
             About us
           </button>

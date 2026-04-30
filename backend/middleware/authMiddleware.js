@@ -1,5 +1,5 @@
 import { verifyToken } from '@clerk/backend';
-import { getUserByClerkUserId } from '../models/userModel.js';
+import { getUserByClerkUserId, touchUserPresence } from '../models/userModel.js';
 import { loadClerkUser, syncLocalUserFromClerk } from '../services/clerkUserService.js';
 
 function getAdminEmails() {
@@ -52,6 +52,8 @@ export async function requireAuth(req, _res, next) {
       const clerkUser = await loadClerkUser(verifiedToken.sub);
       localUser = await syncLocalUserFromClerk(clerkUser);
     }
+
+    await touchUserPresence(localUser.id);
 
     req.user = {
       id: localUser.id,

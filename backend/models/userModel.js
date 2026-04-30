@@ -1,4 +1,4 @@
-import { getAsync, runAsync } from '../config/db.js';
+import { allAsync, getAsync, runAsync } from '../config/db.js';
 
 export async function getUserByClerkUserId(clerkUserId) {
   return getAsync('SELECT * FROM app_users WHERE clerk_user_id = $1', [clerkUserId]);
@@ -36,4 +36,30 @@ export async function updateUserProfile(id, { mobile, dob, gender }) {
   );
 
   return getAsync('SELECT * FROM app_users WHERE id = $1', [id]);
+}
+
+export async function touchUserPresence(id) {
+  const lastSeenAt = new Date().toISOString();
+  await runAsync(
+    `UPDATE app_users
+     SET last_seen_at = $1, updated_at = $1
+     WHERE id = $2`,
+    [lastSeenAt, id]
+  );
+}
+
+export async function getActiveUsers({ withinMinutes = 5, limit = 25 } = {}) {
+  const safeWithinMinutes = Number.isFinite(withinMinutes) ? Math.max(1, Math.min(60, Math.round(withinMinutes))) : 5;
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(100, Math.round(limit))) : 25;
+  const cutoff = new Date(Date.now() - safeWithinMinutes * 60 * 1000).toISOString();
+
+  return allAsync(
+    `SELECT id, name, email, last_seen_at
+     FROM app_users
+     WHERE last_seen_at IS NOT NULL
+       AND last_seen_at >= $1
+     ORDER BY COALESCE(NULLIF(name, ''), email) COLLATE NOCASE ASC
+     LIMIT $2`,
+    [cutoff, safeLimit]
+  );
 }

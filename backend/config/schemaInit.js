@@ -102,7 +102,8 @@ export async function initDb() {
       gender TEXT,
       profile_pic TEXT,
       created_at TEXT NOT NULL,
-      updated_at TEXT
+      updated_at TEXT,
+      last_seen_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS members (
@@ -195,6 +196,12 @@ export async function initDb() {
   const memberColumnNames = new Set(memberColumns.map((column) => column.name));
   if (!memberColumnNames.has('email')) {
     await runAsync(`ALTER TABLE members ADD COLUMN email TEXT`);
+  }
+
+  const appUserColumns = await allAsync(`PRAGMA table_info(app_users)`);
+  const appUserColumnNames = new Set(appUserColumns.map((column) => column.name));
+  if (!appUserColumnNames.has('last_seen_at')) {
+    await runAsync(`ALTER TABLE app_users ADD COLUMN last_seen_at TEXT`);
   }
 
   await seedCycle({

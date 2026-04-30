@@ -5,6 +5,11 @@ export async function getCurrentUser() {
   return data;
 }
 
+export async function getActiveUsers() {
+  const { data } = await apiClient.get('/api/auth/active-users');
+  return data;
+}
+
 export async function updateProfile(payload) {
   const { data } = await apiClient.patch('/api/profile', payload);
   return data;
