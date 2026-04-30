@@ -259,11 +259,12 @@ button:disabled {
   align-items: center;
   background: color-mix(in srgb, var(--primary) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
-  border-radius: 999px;
+  border-radius: 1rem;
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
-  max-width: 30rem;
-  padding: 0.45rem 0.72rem;
+  max-width: min(44rem, 66vw);
+  padding: 0.45rem 0.65rem;
 }
 
 .online-users-label {
@@ -273,12 +274,33 @@ button:disabled {
   white-space: nowrap;
 }
 
-.online-users-names {
+.online-users-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.online-user-chip {
+  background: color-mix(in srgb, var(--surface-soft) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
   color: var(--text);
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0.18rem 0.5rem;
+}
+
+.online-users-empty {
+  color: var(--muted);
   font-size: 0.82rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.online-users-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .nav-link-button:hover,
@@ -1662,10 +1684,6 @@ th {
 
   .online-users-pill {
     max-width: 100%;
-  }
-
-  .online-users-names {
-    white-space: normal;
   }
 
   .member-mode-switch,

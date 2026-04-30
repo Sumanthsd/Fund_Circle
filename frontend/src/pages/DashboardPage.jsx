@@ -48,6 +48,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   const [creatingCycle, setCreatingCycle] = useState(false);
   const [deletingCycleId, setDeletingCycleId] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
+  const [activeUsersError, setActiveUsersError] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [view, setView] = useState('dashboard');
@@ -107,10 +108,11 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
       try {
         const users = await getActiveUsers();
         if (!active) return;
+        setActiveUsersError('');
         setActiveUsers(users);
-      } catch (_err) {
+      } catch (err) {
         if (!active) return;
-        setActiveUsers((current) => (current.length ? current : [{ id: user.id, name: user.name, email: user.email }]));
+        setActiveUsersError(err?.response?.data?.message || err?.message || 'Presence unavailable');
       }
     }
 
@@ -185,17 +187,13 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
       .reverse()
       .find((cycle) => cycle.months.some((month) => month.payout_recipient_name)) || secondCycle;
   const activeUserNames = useMemo(() => {
-    const source = Array.isArray(activeUsers) ? activeUsers : [];
-    const users = source.some((entry) => Number(entry.id) === Number(user.id))
-      ? source
-      : [...source, { id: user.id, name: user.name, email: user.email }];
-
-    return users.map((activeUser) => ({
+    if (!Array.isArray(activeUsers)) return [];
+    return activeUsers.map((activeUser) => ({
       id: activeUser.id,
       label: getDisplayUserName(activeUser),
       isSelf: Number(activeUser.id) === Number(user.id),
     }));
-  }, [activeUsers, user.email, user.id, user.name]);
+  }, [activeUsers, user.id]);
 
   const summaryCards = [
     {
@@ -607,12 +605,20 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
             {user.isAdmin ? 'Admin User' : 'Member'}
           </span>
           <div className="online-users-pill" title="Users active in the last 5 minutes">
-            <span className="online-users-label">Online now:</span>
-            <span className="online-users-names">
-              {activeUserNames.length
-                ? activeUserNames.map((entry) => (entry.isSelf ? `${entry.label} (You)` : entry.label)).join(', ')
-                : 'No active users'}
-            </span>
+            <span className="online-users-label">Online now ({activeUserNames.length})</span>
+            {activeUsersError ? (
+              <span className="online-users-error">{activeUsersError}</span>
+            ) : activeUserNames.length ? (
+              <span className="online-users-list">
+                {activeUserNames.map((entry) => (
+                  <span key={entry.id} className="online-user-chip">
+                    {entry.isSelf ? `${entry.label} (You)` : entry.label}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span className="online-users-empty">No active users</span>
+            )}
           </div>
           <button className="nav-link-button" type="button" onClick={() => setView('about')}>
             About us
