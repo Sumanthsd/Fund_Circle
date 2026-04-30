@@ -110,6 +110,7 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
         setActiveUsers(users);
       } catch (_err) {
         if (!active) return;
+        setActiveUsers((current) => (current.length ? current : [{ id: user.id, name: user.name, email: user.email }]));
       }
     }
 
@@ -184,13 +185,17 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
       .reverse()
       .find((cycle) => cycle.months.some((month) => month.payout_recipient_name)) || secondCycle;
   const activeUserNames = useMemo(() => {
-    if (!Array.isArray(activeUsers)) return [];
-    return activeUsers.map((activeUser) => ({
+    const source = Array.isArray(activeUsers) ? activeUsers : [];
+    const users = source.some((entry) => Number(entry.id) === Number(user.id))
+      ? source
+      : [...source, { id: user.id, name: user.name, email: user.email }];
+
+    return users.map((activeUser) => ({
       id: activeUser.id,
       label: getDisplayUserName(activeUser),
       isSelf: Number(activeUser.id) === Number(user.id),
     }));
-  }, [activeUsers, user.id]);
+  }, [activeUsers, user.email, user.id, user.name]);
 
   const summaryCards = [
     {
