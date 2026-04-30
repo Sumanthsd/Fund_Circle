@@ -42,6 +42,18 @@ export default function CycleManagementPage({
     initializedSelection.current = true;
   }, [members]);
 
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = window.setTimeout(() => setMessage(''), 3000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  useEffect(() => {
+    if (!error) return undefined;
+    const timer = window.setTimeout(() => setError(''), 4000);
+    return () => window.clearTimeout(timer);
+  }, [error]);
+
   const selectedMembers = useMemo(
     () => members.filter((member) => selectedMemberIds.includes(member.id)),
     [members, selectedMemberIds]
@@ -157,7 +169,7 @@ export default function CycleManagementPage({
             <input
               value={form.name}
               onChange={(event) => updateField('name', event.target.value)}
-              placeholder="Fourth Cycle"
+              placeholder="Cycle name"
               required
             />
           </label>

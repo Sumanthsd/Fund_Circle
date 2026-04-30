@@ -38,6 +38,19 @@ export async function updateUserProfile(id, { mobile, dob, gender }) {
   return getAsync('SELECT * FROM app_users WHERE id = $1', [id]);
 }
 
+export async function getAppUsersForPresence(limit = 100) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Math.round(limit))) : 100;
+  return allAsync(
+    `SELECT id, clerk_user_id, name, email
+     FROM app_users
+     WHERE clerk_user_id IS NOT NULL
+       AND trim(clerk_user_id) <> ''
+     ORDER BY id ASC
+     LIMIT $1`,
+    [safeLimit]
+  );
+}
+
 export async function touchUserPresence(id) {
   const lastSeenAt = new Date().toISOString();
   await runAsync(

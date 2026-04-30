@@ -1,5 +1,5 @@
 import { UserButton } from '@clerk/clerk-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CycleExplorer from '../components/Dashboard/CycleExplorer.jsx';
 import CycleManagementPage from '../components/Dashboard/CycleManagementPage.jsx';
 import CycleProgressChart from '../components/Dashboard/CycleProgressChart.jsx';
@@ -7,7 +7,7 @@ import MembersPage from '../components/Dashboard/MembersPage.jsx';
 import OverallPerformanceTile from '../components/Dashboard/OverallPerformanceTile.jsx';
 import RandomPicker from '../components/Dashboard/RandomPicker.jsx';
 import { ABOUT_ITEMS, BRAND_COPY, BRAND_NAME, CONTACT_INFO } from '../config/branding.js';
-import { getActiveUsers } from '../services/authService.js';
+import { getActiveUsers, getDataRevision } from '../services/authService.js';
 import { createCycle, deleteCycle, finalizeRandomDraw, getCycles, startCycle, updateContribution } from '../services/cycleService.js';
 import { createMember, deleteMember, getMembers, updateMember } from '../services/memberService.js';
 
@@ -24,7 +24,8 @@ const MENU_ITEMS = [
   { id: 'members', label: 'Members' },
   { id: 'cycles', label: 'Cycles' },
 ];
-const BACKGROUND_REFRESH_MS = 15000;
+const BACKGROUND_REFRESH_MS = 5000;
+const REVISION_CHECK_MS = 2000;
 const ACTIVE_USERS_REFRESH_MS = 20000;
 
 function getDisplayUserName(profile) {
@@ -53,6 +54,13 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   const [notice, setNotice] = useState('');
   const [view, setView] = useState('dashboard');
   const [selectedCycleId, setSelectedCycleId] = useState(null);
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const onlineUsersMenuRef = useRef(null);
+  const backgroundRefreshBusyRef = useRef(false);
+  const revisionCheckBusyRef = useRef(false);
+  const latestRevisionRef = useRef(0);
+
+  const normalizedUserEmail = String(user.email || '').trim().toLowerCase();
 
   async function loadCycles() {
     const data = await getCycles();
@@ -79,7 +87,15 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   }
 
   async function refreshDashboardData({ background = false } = {}) {
+    if (background && backgroundRefreshBusyRef.current) {
+      return;
+    }
+
     try {
+      if (background) {
+        backgroundRefreshBusyRef.current = true;
+      }
+
       if (!background) {
         setError('');
         setLoading(true);
@@ -93,6 +109,8 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
     } finally {
       if (!background) {
         setLoading(false);
+      } else {
+        backgroundRefreshBusyRef.current = false;
       }
     }
   }
@@ -126,20 +144,80 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   }, []);
 
   useEffect(() => {
-    if (view === 'members' || loading) return;
+    if (loading) return;
 
     const intervalId = window.setInterval(() => {
       refreshDashboardData({ background: true });
     }, BACKGROUND_REFRESH_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [view, loading]);
+  }, [loading]);
 
   useEffect(() => {
     if (loading) return;
     refreshDashboardData({ background: true });
     loadActiveUsers();
   }, [view]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    let active = true;
+    const checkRevision = async () => {
+      if (revisionCheckBusyRef.current) return;
+
+      try {
+        revisionCheckBusyRef.current = true;
+        const revision = await getDataRevision();
+        if (!active || !Number.isFinite(revision) || revision <= 0) return;
+
+        if (!latestRevisionRef.current) {
+          latestRevisionRef.current = revision;
+          return;
+        }
+
+        if (revision > latestRevisionRef.current) {
+          latestRevisionRef.current = revision;
+          await Promise.all([refreshDashboardData({ background: true }), loadActiveUsers()]);
+        }
+      } catch (_err) {
+        // Silent: background revision checks should not interrupt the UX.
+      } finally {
+        revisionCheckBusyRef.current = false;
+      }
+    };
+
+    checkRevision();
+    const intervalId = window.setInterval(checkRevision, REVISION_CHECK_MS);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [loading, view]);
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshDashboardData({ background: true });
+        loadActiveUsers();
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!onlineUsersMenuRef.current) return;
+      if (onlineUsersMenuRef.current.contains(event.target)) return;
+      setShowOnlineUsers(false);
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -189,11 +267,13 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
   const activeUserNames = useMemo(() => {
     if (!Array.isArray(activeUsers)) return [];
     return activeUsers.map((activeUser) => ({
-      id: activeUser.id,
+      id: String(activeUser.id || activeUser.email || activeUser.name || 'active-user'),
       label: getDisplayUserName(activeUser),
-      isSelf: Number(activeUser.id) === Number(user.id),
+      isSelf:
+        String(activeUser.id || '').trim() === String(user.id || '').trim() ||
+        String(activeUser.email || '').trim().toLowerCase() === normalizedUserEmail,
     }));
-  }, [activeUsers, user.id]);
+  }, [activeUsers, normalizedUserEmail, user.id]);
 
   const summaryCards = [
     {
@@ -604,21 +684,35 @@ export default function DashboardPage({ user, theme, onToggleTheme }) {
           <span className={`role-pill ${user.isAdmin ? 'role-admin' : 'role-member'}`}>
             {user.isAdmin ? 'Admin User' : 'Member'}
           </span>
-          <div className="online-users-pill" title="Users active in the last 5 minutes">
-            <span className="online-users-label">Online now ({activeUserNames.length})</span>
-            {activeUsersError ? (
-              <span className="online-users-error">{activeUsersError}</span>
-            ) : activeUserNames.length ? (
-              <span className="online-users-list">
-                {activeUserNames.map((entry) => (
-                  <span key={entry.id} className="online-user-chip">
-                    {entry.isSelf ? `${entry.label} (You)` : entry.label}
-                  </span>
-                ))}
-              </span>
-            ) : (
-              <span className="online-users-empty">No active users</span>
-            )}
+          <div className="online-users-menu" ref={onlineUsersMenuRef}>
+            <button
+              className={`online-users-trigger ${showOnlineUsers ? 'is-open' : ''}`}
+              type="button"
+              onClick={() => setShowOnlineUsers((current) => !current)}
+              title="Users active right now"
+            >
+              <span className="online-dot" />
+              <span className="online-users-trigger-label">Online ({activeUserNames.length})</span>
+            </button>
+            {showOnlineUsers ? (
+              <div className="online-users-popover">
+                {activeUsersError ? (
+                  <div className="online-users-error">{activeUsersError}</div>
+                ) : activeUserNames.length ? (
+                  <div className="online-users-popover-list">
+                    {activeUserNames.map((entry, index) => (
+                      <div key={`${entry.id}-${index}`} className="online-users-popover-row">
+                        <span className="online-users-popover-name">
+                          {entry.isSelf ? `${entry.label} (You)` : entry.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="online-users-empty">No active users</div>
+                )}
+              </div>
+            ) : null}
           </div>
           <button className="nav-link-button" type="button" onClick={() => setView('about')}>
             About us

@@ -3,6 +3,7 @@ import authRoutes from './authRoutes.js';
 import cycleRoutes from './cycleRoutes.js';
 import memberRoutes from './memberRoutes.js';
 import profileRoutes from './profileRoutes.js';
+import realtimeRoutes from './realtimeRoutes.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -12,5 +13,6 @@ router.use(requireAuth);
 router.use('/cycles', cycleRoutes);
 router.use('/members', memberRoutes);
 router.use('/profile', profileRoutes);
+router.use('/realtime', realtimeRoutes);
 
 export default router;
